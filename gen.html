@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GEN词根构词游戏</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: -apple-system, sans-serif;
+            margin: 0;
+            padding: 15px;
+            background: #f0f2f5;
+        }
+
+        h1 {
+            color: #1a73e8;
+            font-size: 1.5rem;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        #affixes-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .affix {
+            padding: 8px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            font-size: 12px;
+            touch-action: none;
+        }
+
+        #construction-area {
+            background: #fff9c4;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .slot {
+            width: 80px;
+            height: 40px;
+            border: 2px dashed #fbbc05;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #666;
+            background: white;
+        }
+
+        #root {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ea4335;
+            margin: 0 10px;
+        }
+
+        #confirm-btn {
+            width: 100%;
+            padding: 12px;
+            background: #34a853;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        #word-collection {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .word-box {
+            padding: 8px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #matching-section {
+            display: none;
+        }
+
+        #meanings-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .meaning-box {
+            padding: 8px;
+            background: #e8f0fe;
+            border-radius: 8px;
+            text-align: center;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .matched {
+            background: #c8e6c9 !important;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 0.5s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .shake {
+            animation: shake 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <h1>GEN词根构词游戏</h1>
+    <div id="affixes-container"></div>
+    
+    <div id="construction-area">
+        <div id="prefix-slot" class="slot">前缀</div>
+        <div id="root">gen</div>
+        <div id="suffix-slot" class="slot">后缀</div>
+    </div>
+    <button id="confirm-btn">确认组合</button>
+    
+    <div id="word-collection"></div>
+    
+    <div id="matching-section">
+        <h3>词义匹配（拖动单词到正确释义）</h3>
+        <div id="meanings-container"></div>
+    </div>
+
+    <script>
+        // 完整游戏数据
+        const gameData = {
+            affixes: [
+                // 有效前缀
+                {en: 're-', cn: '重新', type: 'prefix'},
+                {en: 'de-', cn: '向下', type: 'prefix'},
+                {en: 'con-', cn: '共同', type: 'prefix'},
+                {en: 'anti-', cn: '反对', type: 'prefix'},
+                {en: 'homo-', cn: '相同', type: 'prefix'},
+                {en: 'en-', cn: '使...', type: 'prefix'},
+                {en: 'in-', cn: '内/非', type: 'prefix'},
+                {en: 'indi-', cn: '本土', type: 'prefix'},
+                {en: 'pro-', cn: '向前', type: 'prefix'},
+                {en: 'pre-', cn: '之前', type: 'prefix'},
+
+                // 有效后缀
+                {en: 'erate', cn: '产生', type: 'suffix'},
+                {en: 'der', cn: '...者', type: 'suffix'},
+                {en: 'ous', cn: '的', type: 'suffix'},
+                {en: 'etic', cn: '的', type: 'suffix'},
+                {en: 'ital', cn: '的', type: 'suffix'},
+                {en: 'uous', cn: '的', type: 'suffix'},
+                {en: 'eous', cn: '的', type: 'suffix'},
+                {en: 'eration', cn: '过程', type: 'suffix'},
+                {en: 'erous', cn: '的', type: 'suffix'},
+                {en: 'ocide', cn: '杀戮', type: 'suffix'},
+                {en: 'us', cn: '名词后缀', type: 'suffix'},
+                {en: 'eral', cn: '的', type: 'suffix'},
+                {en: 'ius', cn: '的', type: 'suffix'},
+                {en: 'ious', cn: '的', type: 'suffix'},
+
+                // 干扰项
+                {en: 'un-', cn: '不', type: 'prefix'},
+                {en: 'post-', cn: '之后', type: 'prefix'},
+                {en: 'sub-', cn: '下面', type: 'prefix'},
+                {en: 'dis-', cn: '否定', type: 'prefix'},
+                {en: 'trans-', cn: '跨越', type: 'prefix'},
+                {en: 'tion', cn: '名词后缀', type: 'suffix'},
+                {en: 'ment', cn: '名词后缀', type: 'suffix'},
+                {en: 'able', cn: '能够', type: 'suffix'},
+                {en: 'ify', cn: '使...化', type: 'suffix'},
+                {en: 'genous', cn: '的', type: 'suffix'}
+            ],
+
+            validCombinations: [
+                // 前缀+gen
+                { prefix: 'anti-', suffix: '', word: 'antigen', meaning: '抗原' },
+                { prefix: 'en-', suffix: '', word: 'engender', meaning: '产生' },
+                
+                // gen+后缀
+                { prefix: '', suffix: 'erate', word: 'generate', meaning: '产生' },
+                { prefix: '', suffix: 'der', word: 'gender', meaning: '性别' },
+                { prefix: '', suffix: 'eric', word: 'generic', meaning: '通用的' },
+                { prefix: '', suffix: 'etic', word: 'genetic', meaning: '遗传的' },
+                { prefix: '', suffix: 'eral', word: 'general', meaning: '一般的' },
+                { prefix: '', suffix: 'ius', word: 'genius', meaning: '天才' },
+                { prefix: '', suffix: 'eration', word: 'generation', meaning: '一代' },
+                { prefix: '', suffix: 'erous', word: 'generous', meaning: '慷慨的' },
+                { prefix: '', suffix: 'uine', word: 'genuine', meaning: '真正的' },
+                { prefix: '', suffix: 'us', word: 'genus', meaning: '属（生物分类）' },
+                { prefix: '', suffix: 'ocide', word: 'genocide', meaning: '种族灭绝' },
+                
+                // 前缀+gen+后缀
+                { prefix: 're-', suffix: 'erate', word: 'regenerate', meaning: '再生' },
+                { prefix: 'de-', suffix: 'erate', word: 'degenerate', meaning: '退化' },
+                { prefix: 'con-', suffix: 'ital', word: 'congenital', meaning: '先天的' },
+                { prefix: 'indi-', suffix: 'ous', word: 'indigenous', meaning: '本土的' },
+                { prefix: 'in-', suffix: 'uous', word: 'ingenuous', meaning: '天真的' },
+                { prefix: 'homo-', suffix: 'eous', word: 'homogeneous', meaning: '同质的' },
+                { prefix: 'in-', suffix: 'ious', word: 'ingenious', meaning: '机智的' }
+            ],
+
+            collectedWords: [],
+            wordMeanings: new Map()
+        };
+
+        // 初始化游戏
+        function initGame() {
+            renderAffixes();
+            setupEventListeners();
+        }
+
+        // 渲染词缀
+        function renderAffixes() {
+            const container = document.getElementById('affixes-container');
+            container.innerHTML = '';
+            
+            gameData.affixes.forEach(affix => {
+                const div = document.createElement('div');
+                div.className = 'affix';
+                div.innerHTML = `<b>${affix.en}</b><br><small>${affix.cn}</small>`;
+                div.draggable = true;
+                div.dataset.type = affix.type;
+                div.dataset.value = affix.en;
+                
+                div.addEventListener('dragstart', handleDragStart);
+                container.appendChild(div);
+            });
+        }
+
+        // 事件处理
+        function setupEventListeners() {
+            document.querySelectorAll('.slot').forEach(slot => {
+                slot.addEventListener('dragover', handleDragOver);
+                slot.addEventListener('drop', handleDrop);
+            });
+
+            document.getElementById('confirm-btn').addEventListener('click', checkCombination);
+            document.addEventListener('dragover', e => e.preventDefault());
+            document.addEventListener('drop', e => e.preventDefault());
+        }
+
+        function handleDragStart(e) {
+            const type = e.target.dataset.type;
+            const value = e.target.dataset.value;
+            e.dataTransfer.setData('text/plain', JSON.stringify({ type, value }));
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const slot = e.target;
+
+            if (slot.id === 'prefix-slot' && data.type === 'prefix') {
+                slot.textContent = data.value;
+            }
+            if (slot.id === 'suffix-slot' && data.type === 'suffix') {
+                slot.textContent = data.value;
+            }
+        }
+
+        // 验证组合
+        function checkCombination() {
+            const prefix = document.getElementById('prefix-slot').textContent;
+            const suffix = document.getElementById('suffix-slot').textContent;
+            
+            const realPrefix = prefix === '前缀' ? '' : prefix;
+            const realSuffix = suffix === '后缀' ? '' : suffix;
+
+            const combination = gameData.validCombinations.find(c => 
+                c.prefix === realPrefix && 
+                c.suffix === realSuffix
+            );
+
+            if (combination) {
+                handleValidCombination(combination);
+            } else {
+                handleInvalidCombination();
+            }
+
+            document.getElementById('prefix-slot').textContent = '前缀';
+            document.getElementById('suffix-slot').textContent = '后缀';
+        }
+
+        function handleValidCombination(combo) {
+            if (!gameData.collectedWords.includes(combo.word)) {
+                gameData.collectedWords.push(combo.word);
+                gameData.wordMeanings.set(combo.word, combo.meaning);
+                updateWordCollection();
+                
+                document.getElementById('root').classList.add('pulse');
+                setTimeout(() => {
+                    document.getElementById('root').classList.remove('pulse');
+                }, 500);
+
+                if (gameData.collectedWords.length >= 10) {
+                    document.getElementById('matching-section').style.display = 'block';
+                    setupMeaningMatching();
+                }
+            }
+        }
+
+        function handleInvalidCombination() {
+            document.getElementById('construction-area').classList.add('shake');
+            setTimeout(() => {
+                document.getElementById('construction-area').classList.remove('shake');
+            }, 500);
+        }
+
+        // 更新单词收集区
+        function updateWordCollection() {
+            const container = document.getElementById('word-collection');
+            container.innerHTML = '';
+            
+            gameData.collectedWords.forEach(word => {
+                const box = document.createElement('div');
+                box.className = 'word-box';
+                box.textContent = word;
+                box.draggable = true;
+                box.dataset.meaning = gameData.wordMeanings.get(word);
+                
+                box.addEventListener('dragstart', e => {
+                    e.dataTransfer.setData('text/plain', word);
+                });
+                
+                container.appendChild(box);
+            });
+        }
+
+        // 词义匹配
+        function setupMeaningMatching() {
+            const meaningsContainer = document.getElementById('meanings-container');
+            const meanings = shuffleArray(Array.from(gameData.wordMeanings.values()));
+            
+            meanings.forEach(meaning => {
+                const box = document.createElement('div');
+                box.className = 'meaning-box';
+                box.textContent = meaning;
+                box.dataset.meaning = meaning;
+                
+                box.addEventListener('dragover', e => e.preventDefault());
+                box.addEventListener('drop', e => handleMeaningDrop(e, meaning));
+                
+                meaningsContainer.appendChild(box);
+            });
+        }
+
+        function handleMeaningDrop(e, correctMeaning) {
+            e.preventDefault();
+            const word = e.dataTransfer.getData('text/plain');
+            const actualMeaning = gameData.wordMeanings.get(word);
+            
+            if (actualMeaning === correctMeaning) {
+                e.target.classList.add('matched');
+                e.target.textContent = `${word} - ${correctMeaning}`;
+                checkCompletion();
+            }
+        }
+
+        function checkCompletion() {
+            const matched = document.querySelectorAll('.matched').length;
+            if (matched === gameData.collectedWords.length) {
+                alert('🎉 恭喜！所有词义匹配成功！');
+            }
+        }
+
+        // 工具函数
+        function shuffleArray(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        // 启动游戏
+        document.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
